@@ -79,13 +79,29 @@ install_ubuntu() {
 
   info "Installing perf packages via apt (kernel: ${kver})…"
   apt-get update -y
-  DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    linux-tools-common linux-tools-generic \
-    "linux-tools-${kver}" "linux-cloud-tools-${kver}" || true
 
-  DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    "linux-tools-${base}" "linux-cloud-tools-${base}" \
-    linux-tools-aws linux-cloud-tools-aws || true
+  # Detect Ubuntu release
+  local release=""
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    release="$VERSION_ID"
+  fi
+
+  if dpkg --compare-versions "$release" le "22.04"; then
+    # Ubuntu 22.04 (Jammy) and earlier - include cloud-tools
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      linux-tools-common linux-tools-generic \
+      "linux-tools-${kver}" "linux-cloud-tools-${kver}" || true
+
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      "linux-tools-${base}" "linux-cloud-tools-${base}" \
+      linux-tools-aws linux-cloud-tools-aws || true
+  else
+    # Ubuntu 24.04 (Noble) and newer - no cloud-tools packages
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      linux-tools-common linux-tools-generic \
+      "linux-tools-${kver}" "linux-tools-${base}" linux-tools-aws || true
+  fi
 
   wire_ubuntu_wrapper || true
 }
@@ -143,6 +159,10 @@ main() {
   ( perf stat -e task-clock sleep 0.1 >/dev/null 2>&1 && info "perf stat smoke: OK" ) || \
     warn "perf stat smoke failed (consider checking kernel.perf_event_paranoid)."
 }
-
+# Apply sysctl immediately for current session
+if [ "${PERF_TUNE_SYSCTL}" = "1" ]; then
+  echo 2 > /proc/sys/kernel/perf_event_paranoid || true
+  echo 0 > /proc/sys/kernel/kptr_restrict || true
+fi
 main "$@"
 exit 0

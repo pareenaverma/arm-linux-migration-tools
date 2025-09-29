@@ -18,12 +18,15 @@ if [ "$EUID" -ne 0 ]; then
   fi
 fi
 
-# Check for Arm Linux (aarch64)
+# Check for Arm Linux (aarch64)/x86_64 host
 ARCH=$(uname -m)
-if [ "$ARCH" != "aarch64" ]; then
-  echo "[ERROR] This installer is intended for Arm 64-bit (aarch64) Linux systems. Detected: $ARCH" >&2
-  exit 1
-fi
+case "$ARCH" in
+  aarch64|arm64)   ARCH_NORM="arm64"   ;;
+  x86_64|amd64)    ARCH_NORM="x86_64" ;;
+  *) echo "[WARN] Unrecognized architecture '$ARCH'; defaulting to arm64 tarball." >&2
+     ARCH_NORM="arm64"
+     ;;
+esac
 
 LOCKFILE="/tmp/arm-migration-tools.lock"
 exec 200>"$LOCKFILE"
@@ -179,7 +182,7 @@ if [ "$REMOTE_INSTALL" = true ]; then
     echo "[INFO] arm-migration-tools v$AMT_VERSION already installed at $INSTALL_PREFIX, skipping download/extract."
     SCRIPTS_DIR="$INSTALL_PREFIX/scripts"
   else
-    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/download/v$LATEST_TAG/arm-migration-tools-v$LATEST_TAG.tar.gz"
+    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/download/v$LATEST_TAG/arm-migration-tools-v${LATEST_TAG}-${ARCH_NORM}.tar.gz"
     echo "[INFO] Downloading version v$LATEST_TAG from $DOWNLOAD_URL..."
 
     TEMP_DIR=$(mktemp -d)

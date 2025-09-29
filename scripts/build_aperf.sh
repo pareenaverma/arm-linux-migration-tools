@@ -3,7 +3,16 @@
 set -e
 
 APERF_VERSION="v0.1.15-alpha"
-APERF_TAR="aperf-${APERF_VERSION}-aarch64.tar.gz"
+# APERF_TAR="aperf-${APERF_VERSION}-aarch64.tar.gz"
+# APERF_URL="https://github.com/aws/aperf/releases/download/${APERF_VERSION}/${APERF_TAR}"
+ARCH=$(uname -m)
+case "$ARCH" in
+  aarch64|arm64) AP_ARCH="aarch64" ;;
+  x86_64|amd64)  AP_ARCH="x86_64" ;;
+  *) echo "[ERROR] Unsupported architecture: $ARCH"; exit 1 ;;
+esac
+
+APERF_TAR="aperf-${APERF_VERSION}-${AP_ARCH}.tar.gz"
 APERF_URL="https://github.com/aws/aperf/releases/download/${APERF_VERSION}/${APERF_TAR}"
 APERF_DIR="aperf-bin"
 

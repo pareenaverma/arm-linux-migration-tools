@@ -3,7 +3,14 @@
 set -e
 
 KAI_VERSION="0.7.0"
-KAI_TAR="kubearchinspect_Linux_arm64.tar.gz"
+ARCH=$(uname -m)
+case "$ARCH" in
+  aarch64|arm64) KAI_ARCH="arm64" ;;
+  x86_64|amd64)  KAI_ARCH="x86_64" ;;
+  *) echo "[ERROR] Unsupported architecture: $ARCH"; exit 1 ;;
+esac
+
+KAI_TAR="kubearchinspect_Linux_${KAI_ARCH}.tar.gz"
 KAI_URL="https://github.com/ArmDeveloperEcosystem/kubearchinspect/releases/download/v${KAI_VERSION}/${KAI_TAR}"
 KAI_DIR="kubearchinspect"
 

@@ -3,7 +3,22 @@
 set -e
 
 BOLT_VERSION="19.1.7"
-BOLT_TAR="clang+llvm-${BOLT_VERSION}-aarch64-linux-gnu.tar.xz"
+# BOLT_TAR="clang+llvm-${BOLT_VERSION}-aarch64-linux-gnu.tar.xz"
+# BOLT_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${BOLT_VERSION}/${BOLT_TAR}"
+ARCH=$(uname -m)
+case "$ARCH" in
+  aarch64|arm64)
+    BOLT_TAR="clang+llvm-${BOLT_VERSION}-aarch64-linux-gnu.tar.xz"
+    ;;
+  x86_64|amd64)
+    BOLT_TAR="LLVM-${BOLT_VERSION}-Linux-X64.tar.xz"
+    ;;
+  *)
+    echo "[ERROR] Unsupported architecture: $ARCH"
+    exit 1
+    ;;
+esac
+
 BOLT_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${BOLT_VERSION}/${BOLT_TAR}"
 BOLT_DIR="bolt-bin"
 
