@@ -113,7 +113,28 @@ def get_manifest_quay(repository: str, tag: str, token: Optional[str] = None) ->
         print(f"Failed to get manifest: {e}", file=sys.stderr)
         sys.exit(1)
 
-def check_architectures(manifest: Dict) -> List[str]:
+def get_config_blob(registry: str, repository: str, digest: str, token: str) -> Dict:
+    """Fetch the config blob for a single-arch image."""
+    if registry == 'dockerhub':
+        url = f"https://registry-1.docker.io/v2/{repository}/blobs/{digest}"
+        headers = {'Authorization': f'Bearer {token}'}
+    elif registry == 'ghcr':
+        url = f"https://ghcr.io/v2/{repository}/blobs/{digest}"
+        headers = {'Authorization': f'Bearer {token}'}
+    elif registry == 'quay':
+        url = f"https://quay.io/v2/{repository}/blobs/{digest}"
+        headers = {'Authorization': f'Bearer {token}'} if token else {}
+    else:
+        return {}
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=TIMEOUT_SECONDS)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException:
+        return {}
+
+def check_architectures(manifest: Dict, registry: str = None, repository: str = None, token: str = None) -> List[str]:
     """Check available architectures in the manifest."""
     # Multi-arch manifest (manifest list or OCI index)
     if manifest.get('manifests'):
@@ -126,8 +147,17 @@ def check_architectures(manifest: Dict) -> List[str]:
         if 'helm' in config_type or 'artifact' in config_type:
             # Not a container image, cannot determine architecture from manifest alone
             return []
-        # For single-arch container images, we'd need to inspect the config blob
-        # For now, assume it's a single-arch image (often amd64 by default)
+        
+        # For single-arch container images, fetch the config blob to get architecture
+        if registry and repository and token:
+            digest = manifest['config'].get('digest')
+            if digest:
+                config_blob = get_config_blob(registry, repository, digest, token)
+                arch = config_blob.get('architecture')
+                if arch:
+                    return [arch]
+        
+        # Fallback if we couldn't get the config
         return ['unknown']
     else:
         return []
@@ -199,9 +229,18 @@ if __name__ == "__main__":
     # Parse image specification
     repository, tag = parse_image_spec(args.image, registry)
     
-    # Get manifest
+    # Get manifest and token for potential config blob fetching
+    if registry == 'dockerhub':
+        token = get_dockerhub_auth_token(repository)
+    elif registry == 'ghcr':
+        token = get_ghcr_auth_token(repository)
+    elif registry == 'quay':
+        token = get_quay_auth_token()
+    else:
+        token = None
+    
     manifest = get_manifest(args.image, registry, repository, tag)
-    architectures = check_architectures(manifest)
+    architectures = check_architectures(manifest, registry, repository, token)
 
     registry_labels = {'ghcr': 'GHCR', 'quay': 'Quay.io', 'dockerhub': 'DockerHub'}
     registry_label = registry_labels.get(registry, registry)
