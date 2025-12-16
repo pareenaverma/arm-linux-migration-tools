@@ -18,11 +18,16 @@ def detect_registry(image: str) -> str:
         return 'ghcr'
     elif image.startswith('quay.io/'):
         return 'quay'
-    elif image.startswith('docker.io/') or '/' not in image or image.count('/') == 1:
+    elif image.startswith('docker.io/'):
         return 'dockerhub'
-    else:
-        # Default to dockerhub for backward compatibility
-        return 'dockerhub'
+    elif '/' not in image or image.count('/') == 1:
+        # No registry specified, or just owner/image format (DockerHub)
+        # Only if it doesn't contain a dot (which would indicate a registry domain)
+        if '.' not in image.split('/')[0]:
+            return 'dockerhub'
+    
+    # If we get here, it's likely a custom registry we don't support
+    return 'unsupported'
 
 def get_dockerhub_auth_token(repository: str) -> str:
     """Get Docker Hub authentication token."""
@@ -225,6 +230,14 @@ if __name__ == "__main__":
     
     # Detect registry type
     registry = detect_registry(args.image)
+    
+    # Check if registry is supported
+    if registry == 'unsupported':
+        # Extract registry name from image
+        registry_name = args.image.split('/')[0] if '/' in args.image else args.image
+        print(f"✗ Unsupported registry: {registry_name}", file=sys.stderr)
+        print(f"Supported registries: DockerHub, ghcr.io, quay.io", file=sys.stderr)
+        sys.exit(1)
     
     # Parse image specification
     repository, tag = parse_image_spec(args.image, registry)
